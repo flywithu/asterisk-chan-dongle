@@ -740,6 +740,7 @@ EXPORT_DEF int tpdu_parse_deliver(const uint8_t *pdu, size_t pdu_length, int tpd
 	dcs = pdu[i++];
 	i += pdu_parse_timestamp(pdu + i, pdu_length - i, scts);
 	udl = pdu[i++];
+	ast_log(LOG_NOTICE, "PID: [%x], DCS[%x]",pid,dcs);
 
 	if (pid != PDU_PID_SMS && !(0x41 <= pid && pid <= 0x47) /* PDU_PID_SMS_REPLACE_MASK */) {
 		/* 3GPP TSS 23.040 v14.0.0 (2017-013) */
@@ -779,6 +780,7 @@ EXPORT_DEF int tpdu_parse_deliver(const uint8_t *pdu, size_t pdu_length, int tpd
 		case 0x4: /* HIGH 0100: Marked for self-destruct */
 		case 0x5: /* HIGH 0101: Marked for self-destruct with class */
 		case 0xF: /* HIGH 1111: Data coding/message class */
+		case 0x8: //KOREAN
 			/* Apparently bits 0..3 are not reserved anymore:
 			 * bits 3..2: {7bit, 8bit, ucs2, undef} */
 			alphabet = PDU_DCS_ALPHABET(dcs);
@@ -787,7 +789,10 @@ EXPORT_DEF int tpdu_parse_deliver(const uint8_t *pdu, size_t pdu_length, int tpd
 			 * for HIGH 1111 bit 3 (regardless of bit 2) is
 			 * reserved. */
 			if (alphabet == PDU_DCS_ALPHABET_MASK) {
-				reserved = 1;
+				if(dcs_hi!=0x8)
+				{
+					reserved = 1;
+				}
 			}
 			/* if 0x1 || 0xF then (dsc_lo & 3): {
 			 *     class0, class1-ME-specific,
@@ -822,12 +827,16 @@ EXPORT_DEF int tpdu_parse_deliver(const uint8_t *pdu, size_t pdu_length, int tpd
 			return -1;
 		}
 	}
-	if (alphabet == PDU_DCS_ALPHABET_8BIT) {
-		// TODO: What to do with binary messages? Are there any?
-		// Return an error as it is dangerous to forward the raw binary data as text
-		chan_dongle_err = E_INVALID_CHARSET;
-		return -1;
-	}
+
+	//0791280102194189440AA15137022135001542608021456263691005040B8423F022080B811080210884F3010603BEAF848C82986C5F723638435244303837008D9289178030313038313238303438332F545950453D504C4D4E009615EA46573EEBB3B4EC9CA0EAB88820EC9588EB82B40086808A808F818E02064A88058103093A80
+
+
+	// if (alphabet == PDU_DCS_ALPHABET_8BIT) {
+	// 	// TODO: What to do with binary messages? Are there any?
+	// 	// Return an error as it is dangerous to forward the raw binary data as text
+	// 	chan_dongle_err = E_INVALID_CHARSET;
+	// 	return -1;
+	// }
 
 	/* calculate number of octets in UD */
 	int udl_nibbles = -1; /* only used for 7bit alphabet */
@@ -836,9 +845,19 @@ EXPORT_DEF int tpdu_parse_deliver(const uint8_t *pdu, size_t pdu_length, int tpd
 		udl_nibbles = (udl * 7 + 3) / 4;
 		udl_bytes = (udl_nibbles + 1) / 2;
 	}
+
+	// 0791280102194189440BA11050325177F7008442608051520463110A22080B811050325177F7B0A1B3AA 가나다. 한글은 마지막 글짜 사라짐.
 	if (udl_bytes != pdu_length - i) {
-		chan_dongle_err = E_UNKNOWN;
-		return -1;
+		ast_log(LOG_NOTICE, "ERROR: %s : %d dcs[0x%x]   udl_bytes [%d] pdu_length-i[%d]\n",__FUNCTION__,__LINE__,dcs,udl_bytes,pdu_length - i);
+		if(dcs == 0x84)
+		{
+
+		}
+		else
+		{
+			chan_dongle_err = E_UNKNOWN;
+			return -1;
+		}
 	}
 
 	if (PDUTYPE_UDHI(tpdu_type) == PDUTYPE_UDHI_HAS_HEADER) {
@@ -854,8 +873,12 @@ EXPORT_DEF int tpdu_parse_deliver(const uint8_t *pdu, size_t pdu_length, int tpd
 			udl_nibbles -= (udhl + 1) * 2;
 		}
 
+
+
 		/* NOTE: UDHL count octets no need calculation */
 		if (pdu_length - i < (size_t)udhl) {
+			ast_log(LOG_NOTICE, "ERROR: %s : %d\n",__FUNCTION__,__LINE__);
+
 			chan_dongle_err = E_UNKNOWN;
 			return -1;
 		}
@@ -925,7 +948,7 @@ EXPORT_DEF int tpdu_parse_deliver(const uint8_t *pdu, size_t pdu_length, int tpd
 	}
 
 	int msg_len = pdu_length - i, out_len;
-	if (alphabet == PDU_DCS_ALPHABET_7BIT) {
+	if ((alphabet == PDU_DCS_ALPHABET_7BIT)) {
 		out_len = gsm7_unpack_decode(
 			(const char*)pdu + i, udl_nibbles, msg,
 			1024 /* assume enough memory, as SMS messages are limited in size */,
@@ -934,7 +957,38 @@ EXPORT_DEF int tpdu_parse_deliver(const uint8_t *pdu, size_t pdu_length, int tpd
 			chan_dongle_err = E_DECODE_GSM7;
 			return -1;
 		}
-	} else {
+	} 
+	else if ((alphabet == PDU_DCS_ALPHABET_8BIT)) 	{
+		// 0791280102194189440BA11050325177F700 15 426080416421630E0A22080B811050325177F7313233 123
+		// 0791280102194189440BA11050325177F700 84 42608041844363110A22080B811050325177F7 B0A1 B3AA  가나다
+// 		"가": 0xB0A1
+// "나": 0xB3AA
+// "다": 0xB4D9
+
+		// char *t = &pdu[pdu_length] - msg_len;
+		// ast_log(LOG_WARNING, "MSG [%d] %c %c\n",msg_len,*t,*(t+1));
+		// for (int i = 0; i < msg_len; ++i) {
+		// 	msg[i] = (unsigned short)((unsigned char)t[i] << 8);  // ASCII 값을 높은 바이트로 이동
+
+		// }
+		// ast_log(LOG_WARNING, "MSG [0x%04X][0x%04X][0x%04X]\n",msg[0],msg[1],msg[2]);
+		// out_len = msg_len;
+
+		// out_len = 3;
+		// msg[0]=0x00ac;
+		// msg[1]=0x98b0;
+		// msg[2]=0xe4b2;
+		// B0A1 B3AA 가나
+
+		// char test[]={0xb1,0xa1,0xb3,0xaa};
+		out_len = ascii_to_ucs2(&pdu[pdu_length] - msg_len,msg_len,msg,1024);
+		// out_len = ascii_to_ucs2(test,2,msg,1024);
+
+		ast_log(LOG_WARNING, "MSG [0x%04X][0x%04X][0x%04X]\n",msg[0],msg[1],msg[2]);
+	}
+
+	else {
+
 		out_len = msg_len / 2;
 		memcpy((char*)msg, pdu + i, msg_len);
 		msg[out_len] = '\0';

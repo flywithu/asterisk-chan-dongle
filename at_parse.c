@@ -305,6 +305,15 @@ EXPORT_DEF int at_parse_cdsi (const char* str)
 }
 
 
+void print_pdu(const uint8_t *pdu, size_t length) {
+    printf("PDU Data: ");
+    for (size_t i = 0; i < length; i++) {
+        printf("%02X ", pdu[i]);  // 16진수 형태로 출력
+    }
+    printf("\n");
+}
+
+
 
 /*!
  * \brief Parse a CMGR message
@@ -349,7 +358,12 @@ EXPORT_DEF int at_parse_cmgr(char *str, size_t len, int *tpdu_type, char *sca, s
 	* +CMGR: 1,,31
 	* 07911234567890F3040B911234556780F20008012150220040210C041F04400438043204350442<CR><LF><CR><LF>
 	* OK<CR><LF>
+	* 0791280102194189440BA11050325177F70015426080111281630E0A22080B811050325177F7313133
+	* => Invalid Charset
 	*/
+
+	ast_log(LOG_WARNING, "parsing incoming message: %s\n",str);
+
 
 	char delimiters[] = ",,\n";
 	char *marks[STRLEN(delimiters)];

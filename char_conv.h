@@ -15,5 +15,6 @@ EXPORT_DECL void hexify(const uint8_t *in, size_t in_length, char *out);
 EXPORT_DECL ssize_t gsm7_encode(const uint16_t *in, size_t in_length, uint16_t *out);
 EXPORT_DECL ssize_t gsm7_pack(const uint16_t *in, size_t in_length, char *out, size_t out_size, unsigned out_padding);
 EXPORT_DECL ssize_t gsm7_unpack_decode(const char *in, size_t in_length, uint16_t *out, size_t out_size, unsigned in_padding, uint8_t ls, uint8_t ss);
+EXPORT_DEF ssize_t ascii_to_ucs2(const char *in, size_t in_length, uint16_t *out, size_t out_size);
 
 #endif /* CHAN_DONGLE_CHAR_CONV_H_INCLUDED */
