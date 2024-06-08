@@ -3,6 +3,8 @@
        src="https://api.travis-ci.org/wdoekes/asterisk-chan-dongle.svg"/>
 </a>
 
+Support Korea SKT
+
 chan\_dongle channel driver for Huawei UMTS cards
 =================================================
 
