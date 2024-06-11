@@ -845,13 +845,18 @@ EXPORT_DEF int tpdu_parse_deliver(const uint8_t *pdu, size_t pdu_length, int tpd
 		udl_nibbles = (udl * 7 + 3) / 4;
 		udl_bytes = (udl_nibbles + 1) / 2;
 	}
-
+    // 0791280102194189440BA11050325177F70084426011006195631E0A22080B811050325177F76164666364746728282828B0A1B3AA B4  adfcdtg((((가나다라
+	
 	// 0791280102194189440BA11050325177F7008442608051520463110A22080B811050325177F7B0A1B3AA 가나다. 한글은 마지막 글짜 사라짐.
+	char removelast=0;
 	if (udl_bytes != pdu_length - i) {
 		ast_log(LOG_NOTICE, "ERROR: %s : %d dcs[0x%x]   udl_bytes [%d] pdu_length-i[%d]\n",__FUNCTION__,__LINE__,dcs,udl_bytes,pdu_length - i);
 		if(dcs == 0x84)
 		{
-
+			if((abs(udl_bytes-(pdu_length-i)))%2)
+			{
+				removelast = 1;
+			}
 		}
 		else
 		{
@@ -959,6 +964,9 @@ EXPORT_DEF int tpdu_parse_deliver(const uint8_t *pdu, size_t pdu_length, int tpd
 		}
 	} 
 	else if ((alphabet == PDU_DCS_ALPHABET_8BIT)) 	{
+
+		// 0791280102194189440BA11050325177F70084426011120094636E0A22080B811050325177F75B576562B9DFBDC55D0A3C233E0A5BC0CEC1F5B9F8C8A33A3839313830315D20C4ABC4ABBFC0C5E5BFA1BCAD20BAB8B3BD20C0CEC1F5B9F8C8A3C0D4B4CFB4D92E2028C5B8C0CE20B3EBC3E22FC0FCB4DE20B1DDC1F6 
+
 		// 0791280102194189440BA11050325177F700 15 426080416421630E0A22080B811050325177F7313233 123
 		// 0791280102194189440BA11050325177F700 84 42608041844363110A22080B811050325177F7 B0A1 B3AA  가나다
 // 		"가": 0xB0A1
@@ -981,10 +989,19 @@ EXPORT_DEF int tpdu_parse_deliver(const uint8_t *pdu, size_t pdu_length, int tpd
 		// B0A1 B3AA 가나
 
 		// char test[]={0xb1,0xa1,0xb3,0xaa};
-		out_len = ascii_to_ucs2(&pdu[pdu_length] - msg_len,msg_len,msg,1024);
-		// out_len = ascii_to_ucs2(test,2,msg,1024);
 
-		ast_log(LOG_WARNING, "MSG [0x%04X][0x%04X][0x%04X]\n",msg[0],msg[1],msg[2]);
+		out_len = ascii_to_ucs2(&pdu[pdu_length] - msg_len,msg_len,msg,1024);
+
+		ast_log(LOG_WARNING, "pdu_length : [%d] , msg_len: [%d] out_len:[%d]\n",pdu_length, msg_len,out_len);
+		if (out_len <0)
+		{
+			
+			out_len = ascii_to_ucs2(&pdu[pdu_length] - msg_len,msg_len-1,msg,1024);
+
+			ast_log(LOG_WARNING, "pdu_length : [%d] , msg_len: [%d] out_len:[%d]\n",pdu_length, msg_len,out_len);
+		}
+
+
 	}
 
 	else {

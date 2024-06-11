@@ -238,11 +238,12 @@ EXPORT_DEF ssize_t gsm7_unpack_decode(const char *in, size_t in_nibbles, uint16_
 }
 
 
-
+//0791280102194189440BA11050325177F70084426011705583631F0A22080B811050325177F7B0A10AB3AA0AB4D90AB6F30AB8B60AB9D9
+//가\n나\n다\n라\n마\n바\n사
 EXPORT_DEF ssize_t ascii_to_ucs2(const char *in, size_t in_length, uint16_t *out, size_t out_size)
 {
     // 결과 변수 초기화
-    ssize_t res = convert_string(in, in_length, (char*)out, out_size * 2, "EUC-KR", "UCS-2BE"); // UCS-2 Big Endian을 목표 포맷으로 설정
+    ssize_t res = convert_string(in, in_length, (char*)out, out_size * 2, "CP949", "UCS-2BE"); // UCS-2 Big Endian을 목표 포맷으로 설정
     if (res < 0) return res; // 오류 처리
     return res / 2; // 변환된 문자 수 반환 (바이트 수가 아닌 문자 수로 반환)
 }
